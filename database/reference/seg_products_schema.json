@@ -1,0 +1,980 @@
+{
+  "title": "SEG catalogue database: products, applications and cross-references",
+  "generated": "2026-11-16",
+  "database": "PostgreSQL 16 (schema.sql v1)",
+  "notes": [
+    "Introspected from the live database, so types, keys, checks and indexes are exact.",
+    "Lookup tables are included only because the three main tables reference them.",
+    "products.created_by and products.updated_by reference the users table, which is not included in this file."
+  ],
+  "tables": [
+    {
+      "name": "products",
+      "purpose": "One row per SEG OE part number: what the part is.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "identity": true,
+          "description": "Numeric id used by the app and the API."
+        },
+        {
+          "name": "product_type_id",
+          "type": "smallint",
+          "nullable": false,
+          "description": "Starter, Generator, BRM or eMobility."
+        },
+        {
+          "name": "seg_oe_part_no",
+          "type": "text",
+          "nullable": false,
+          "description": "Part number as typed, e.g. 0001.260.034."
+        },
+        {
+          "name": "part_no_norm",
+          "type": "text",
+          "nullable": true,
+          "generated_as": "norm_part_no(seg_oe_part_no)",
+          "description": "Generated: upper-case, punctuation removed. Used for search and duplicate blocking."
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "nullable": true,
+          "description": "Optional display title."
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "description": "Optional long description."
+        },
+        {
+          "name": "voltage_v",
+          "type": "numeric(4,1)",
+          "nullable": true,
+          "description": "Numeric voltage (12, 14, 24, 28); must be positive."
+        },
+        {
+          "name": "output_value",
+          "type": "numeric(7,2)",
+          "nullable": true,
+          "description": "Numeric output, e.g. 4.0 (kW) or 90 (A)."
+        },
+        {
+          "name": "output_value_max",
+          "type": "numeric(7,2)",
+          "nullable": true,
+          "description": "Upper value for ranges such as 55/90 A; cannot be below output_value."
+        },
+        {
+          "name": "output_unit",
+          "type": "text",
+          "nullable": true,
+          "description": "'kW' or 'A'."
+        },
+        {
+          "name": "output_display",
+          "type": "text",
+          "nullable": true,
+          "description": "Exact text the app shows, e.g. '4.0 kW'."
+        },
+        {
+          "name": "moq",
+          "type": "integer",
+          "nullable": true,
+          "description": "Minimum order quantity; NULL = not specified."
+        },
+        {
+          "name": "lead_time_weeks",
+          "type": "smallint",
+          "nullable": true,
+          "description": "Lead time in weeks; NULL = not specified."
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default": "'draft'::text",
+          "description": "draft, published or archived; the app only sees published rows."
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "description": "Required whenever status is published."
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default": "1",
+          "description": "Incremented on every edit; used for optimistic locking in the admin API."
+        },
+        {
+          "name": "source_sheet",
+          "type": "text",
+          "nullable": true,
+          "description": "Excel sheet the part was imported from."
+        },
+        {
+          "name": "source_sl_no",
+          "type": "integer",
+          "nullable": true,
+          "description": "Serial number in the source sheet."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "nullable": true,
+          "description": "User who created the part."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "nullable": true,
+          "description": "User who last changed the part."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()",
+          "description": "Maintained automatically."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()",
+          "description": "Maintained automatically."
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [
+        {
+          "name": "products_part_no_uq",
+          "columns": [
+            "part_no_norm"
+          ]
+        }
+      ],
+      "foreign_keys": [
+        {
+          "name": "products_product_type_id_fkey",
+          "columns": [
+            "product_type_id"
+          ],
+          "references": "product_types",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "NO ACTION"
+        },
+        {
+          "name": "products_created_by_fkey",
+          "columns": [
+            "created_by"
+          ],
+          "references": "users",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "SET NULL"
+        },
+        {
+          "name": "products_updated_by_fkey",
+          "columns": [
+            "updated_by"
+          ],
+          "references": "users",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "SET NULL"
+        }
+      ],
+      "checks": [
+        {
+          "name": "products_voltage_v_check",
+          "expression": "((voltage_v > (0)::numeric))"
+        },
+        {
+          "name": "products_output_value_check",
+          "expression": "((output_value > (0)::numeric))"
+        },
+        {
+          "name": "products_output_value_max_check",
+          "expression": "((output_value_max > (0)::numeric))"
+        },
+        {
+          "name": "products_output_unit_check",
+          "expression": "((output_unit = ANY (ARRAY['kW'::text, 'A'::text])))"
+        },
+        {
+          "name": "products_moq_check",
+          "expression": "((moq > 0))"
+        },
+        {
+          "name": "products_lead_time_weeks_check",
+          "expression": "((lead_time_weeks > 0))"
+        },
+        {
+          "name": "products_status_check",
+          "expression": "((status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])))"
+        },
+        {
+          "name": "products_output_range",
+          "expression": "(((output_value_max IS NULL) OR (output_value_max >= output_value)))"
+        },
+        {
+          "name": "products_published_chk",
+          "expression": "(((status <> 'published'::text) OR (published_at IS NOT NULL)))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "products_part_no_trgm",
+          "definition": "CREATE INDEX products_part_no_trgm ON public.products USING gin (part_no_norm gin_trgm_ops)"
+        },
+        {
+          "name": "products_part_no_uq",
+          "definition": "CREATE UNIQUE INDEX products_part_no_uq ON public.products USING btree (part_no_norm)"
+        },
+        {
+          "name": "products_pkey",
+          "definition": "CREATE UNIQUE INDEX products_pkey ON public.products USING btree (id)"
+        },
+        {
+          "name": "products_type_status_idx",
+          "definition": "CREATE INDEX products_type_status_idx ON public.products USING btree (product_type_id, status)"
+        }
+      ]
+    },
+    {
+      "name": "product_applications",
+      "purpose": "Who uses the part and on what vehicle (feeds the 'Fits Vehicles' list). One product can have many applications.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "identity": true,
+          "description": "Row id."
+        },
+        {
+          "name": "product_id",
+          "type": "integer",
+          "nullable": false,
+          "description": "The part; rows are deleted with the part."
+        },
+        {
+          "name": "customer_id",
+          "type": "integer",
+          "nullable": true,
+          "description": "Customer; may be empty."
+        },
+        {
+          "name": "customer_part_no",
+          "type": "text",
+          "nullable": true,
+          "description": "The number that customer uses for the same part."
+        },
+        {
+          "name": "category_id",
+          "type": "smallint",
+          "nullable": true,
+          "description": "Vehicle category."
+        },
+        {
+          "name": "vehicle_application",
+          "type": "text",
+          "nullable": true,
+          "description": "Free text, e.g. 'Tractors' or 'Picanto'."
+        },
+        {
+          "name": "vehicle_model",
+          "type": "text",
+          "nullable": true,
+          "description": "Vehicle model."
+        },
+        {
+          "name": "fuel_type_id",
+          "type": "smallint",
+          "nullable": true,
+          "description": "Fuel type."
+        },
+        {
+          "name": "engine_family",
+          "type": "text",
+          "nullable": true,
+          "description": "Starters: sheet 'Family' column."
+        },
+        {
+          "name": "engine_type",
+          "type": "text",
+          "nullable": true,
+          "description": "Alternators: sheet 'Type' column."
+        },
+        {
+          "name": "year_from",
+          "type": "smallint",
+          "nullable": true,
+          "description": "First model year; empty for now (workbook has no years)."
+        },
+        {
+          "name": "year_to",
+          "type": "smallint",
+          "nullable": true,
+          "description": "Last model year; must be >= year_from."
+        },
+        {
+          "name": "is_primary",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false",
+          "description": "The one application shown on list cards; at most one per product."
+        },
+        {
+          "name": "source_sheet",
+          "type": "text",
+          "nullable": true,
+          "description": "Excel sheet the row came from."
+        },
+        {
+          "name": "source_sl_no",
+          "type": "integer",
+          "nullable": true,
+          "description": "Serial number in the source sheet."
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "nullable": true,
+          "description": "Free notes."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()",
+          "description": "Maintained automatically."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()",
+          "description": "Maintained automatically."
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [],
+      "foreign_keys": [
+        {
+          "name": "product_applications_product_id_fkey",
+          "columns": [
+            "product_id"
+          ],
+          "references": "products",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "CASCADE"
+        },
+        {
+          "name": "product_applications_customer_id_fkey",
+          "columns": [
+            "customer_id"
+          ],
+          "references": "customers",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "NO ACTION"
+        },
+        {
+          "name": "product_applications_category_id_fkey",
+          "columns": [
+            "category_id"
+          ],
+          "references": "vehicle_categories",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "NO ACTION"
+        },
+        {
+          "name": "product_applications_fuel_type_id_fkey",
+          "columns": [
+            "fuel_type_id"
+          ],
+          "references": "fuel_types",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "NO ACTION"
+        }
+      ],
+      "checks": [
+        {
+          "name": "product_applications_year_from_check",
+          "expression": "(((year_from >= 1950) AND (year_from <= 2100)))"
+        },
+        {
+          "name": "product_applications_year_to_check",
+          "expression": "(((year_to >= 1950) AND (year_to <= 2100)))"
+        },
+        {
+          "name": "product_applications_check",
+          "expression": "(((year_to IS NULL) OR (year_from IS NULL) OR (year_to >= year_from)))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "app_category_idx",
+          "definition": "CREATE INDEX app_category_idx ON public.product_applications USING btree (category_id)"
+        },
+        {
+          "name": "app_cpn_trgm",
+          "definition": "CREATE INDEX app_cpn_trgm ON public.product_applications USING gin (customer_part_no gin_trgm_ops)"
+        },
+        {
+          "name": "app_customer_idx",
+          "definition": "CREATE INDEX app_customer_idx ON public.product_applications USING btree (customer_id)"
+        },
+        {
+          "name": "app_no_duplicate_uq",
+          "definition": "CREATE UNIQUE INDEX app_no_duplicate_uq ON public.product_applications USING btree (product_id, COALESCE(customer_id, 0), COALESCE(lower(customer_part_no), ''::text), COALESCE(lower(vehicle_application), ''::text), COALESCE(lower(vehicle_model), ''::text))"
+        },
+        {
+          "name": "app_one_primary_uq",
+          "definition": "CREATE UNIQUE INDEX app_one_primary_uq ON public.product_applications USING btree (product_id) WHERE is_primary"
+        },
+        {
+          "name": "app_product_idx",
+          "definition": "CREATE INDEX app_product_idx ON public.product_applications USING btree (product_id)"
+        },
+        {
+          "name": "app_vehicle_trgm",
+          "definition": "CREATE INDEX app_vehicle_trgm ON public.product_applications USING gin (vehicle_application gin_trgm_ops)"
+        },
+        {
+          "name": "product_applications_pkey",
+          "definition": "CREATE UNIQUE INDEX product_applications_pkey ON public.product_applications USING btree (id)"
+        }
+      ]
+    },
+    {
+      "name": "product_cross_references",
+      "purpose": "Other part numbers that mean the same part (SEG IAM, Bosch IAM).",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "identity": true,
+          "description": "Row id."
+        },
+        {
+          "name": "product_id",
+          "type": "integer",
+          "nullable": false,
+          "description": "The part; rows are deleted with the part."
+        },
+        {
+          "name": "scheme",
+          "type": "text",
+          "nullable": false,
+          "description": "SEG_IAM, BOSCH_IAM or OTHER."
+        },
+        {
+          "name": "part_no",
+          "type": "text",
+          "nullable": false,
+          "description": "The equivalent number as typed."
+        },
+        {
+          "name": "part_no_norm",
+          "type": "text",
+          "nullable": true,
+          "generated_as": "norm_part_no(part_no)",
+          "description": "Generated: upper-case, punctuation removed; used for lookup."
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [
+        {
+          "name": "product_cross_references_product_id_scheme_part_no_norm_key",
+          "columns": [
+            "product_id",
+            "scheme",
+            "part_no_norm"
+          ]
+        }
+      ],
+      "foreign_keys": [
+        {
+          "name": "product_cross_references_product_id_fkey",
+          "columns": [
+            "product_id"
+          ],
+          "references": "products",
+          "references_columns": [
+            "id"
+          ],
+          "on_delete": "CASCADE"
+        }
+      ],
+      "checks": [
+        {
+          "name": "product_cross_references_scheme_check",
+          "expression": "((scheme = ANY (ARRAY['SEG_IAM'::text, 'BOSCH_IAM'::text, 'OTHER'::text])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "product_cross_references_pkey",
+          "definition": "CREATE UNIQUE INDEX product_cross_references_pkey ON public.product_cross_references USING btree (id)"
+        },
+        {
+          "name": "product_cross_references_product_id_scheme_part_no_norm_key",
+          "definition": "CREATE UNIQUE INDEX product_cross_references_product_id_scheme_part_no_norm_key ON public.product_cross_references USING btree (product_id, scheme, part_no_norm)"
+        },
+        {
+          "name": "xref_part_no_idx",
+          "definition": "CREATE INDEX xref_part_no_idx ON public.product_cross_references USING btree (part_no_norm)"
+        },
+        {
+          "name": "xref_part_no_trgm",
+          "definition": "CREATE INDEX xref_part_no_trgm ON public.product_cross_references USING gin (part_no_norm gin_trgm_ops)"
+        }
+      ]
+    },
+    {
+      "name": "product_types",
+      "purpose": "Starter, Generator, BRM, eMobility.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "smallint",
+          "nullable": false,
+          "identity": true,
+          "description": ""
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "nullable": false,
+          "description": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": ""
+        },
+        {
+          "name": "catalog_title",
+          "type": "text",
+          "nullable": false,
+          "description": ""
+        },
+        {
+          "name": "sort_order",
+          "type": "smallint",
+          "nullable": false,
+          "default": "0",
+          "description": ""
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "nullable": false,
+          "default": "true",
+          "description": ""
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [
+        {
+          "name": "product_types_code_key",
+          "columns": [
+            "code"
+          ]
+        }
+      ],
+      "foreign_keys": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "product_types_code_key",
+          "definition": "CREATE UNIQUE INDEX product_types_code_key ON public.product_types USING btree (code)"
+        },
+        {
+          "name": "product_types_pkey",
+          "definition": "CREATE UNIQUE INDEX product_types_pkey ON public.product_types USING btree (id)"
+        }
+      ]
+    },
+    {
+      "name": "customers",
+      "purpose": "De-duplicated customer / OEM master list.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "identity": true,
+          "description": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": ""
+        },
+        {
+          "name": "name_norm",
+          "type": "text",
+          "nullable": true,
+          "generated_as": "lower(btrim(name))",
+          "description": ""
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "nullable": false,
+          "default": "true",
+          "description": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()",
+          "description": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()",
+          "description": ""
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [
+        {
+          "name": "customers_name_norm_key",
+          "columns": [
+            "name_norm"
+          ]
+        }
+      ],
+      "foreign_keys": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "customers_name_norm_key",
+          "definition": "CREATE UNIQUE INDEX customers_name_norm_key ON public.customers USING btree (name_norm)"
+        },
+        {
+          "name": "customers_name_trgm",
+          "definition": "CREATE INDEX customers_name_trgm ON public.customers USING gin (name gin_trgm_ops)"
+        },
+        {
+          "name": "customers_pkey",
+          "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)"
+        }
+      ]
+    },
+    {
+      "name": "vehicle_categories",
+      "purpose": "Pass Car, LCV, HCV, Tractor, OHW and so on; drives filters.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "smallint",
+          "nullable": false,
+          "identity": true,
+          "description": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": ""
+        },
+        {
+          "name": "sort_order",
+          "type": "smallint",
+          "nullable": false,
+          "default": "0",
+          "description": ""
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [
+        {
+          "name": "vehicle_categories_name_key",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "foreign_keys": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "vehicle_categories_name_key",
+          "definition": "CREATE UNIQUE INDEX vehicle_categories_name_key ON public.vehicle_categories USING btree (name)"
+        },
+        {
+          "name": "vehicle_categories_pkey",
+          "definition": "CREATE UNIQUE INDEX vehicle_categories_pkey ON public.vehicle_categories USING btree (id)"
+        }
+      ]
+    },
+    {
+      "name": "fuel_types",
+      "purpose": "Diesel, Petrol, Diesel/Petrol; drives filters.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "smallint",
+          "nullable": false,
+          "identity": true,
+          "description": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": ""
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "unique": [
+        {
+          "name": "fuel_types_name_key",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "foreign_keys": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "fuel_types_name_key",
+          "definition": "CREATE UNIQUE INDEX fuel_types_name_key ON public.fuel_types USING btree (name)"
+        },
+        {
+          "name": "fuel_types_pkey",
+          "definition": "CREATE UNIQUE INDEX fuel_types_pkey ON public.fuel_types USING btree (id)"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "parent": "product_types",
+      "child": "products",
+      "child_columns": [
+        "product_type_id"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": true,
+      "on_parent_delete": "NO ACTION"
+    },
+    {
+      "parent": "users",
+      "child": "products",
+      "child_columns": [
+        "created_by"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": false,
+      "on_parent_delete": "SET NULL"
+    },
+    {
+      "parent": "users",
+      "child": "products",
+      "child_columns": [
+        "updated_by"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": false,
+      "on_parent_delete": "SET NULL"
+    },
+    {
+      "parent": "products",
+      "child": "product_applications",
+      "child_columns": [
+        "product_id"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": true,
+      "on_parent_delete": "CASCADE"
+    },
+    {
+      "parent": "customers",
+      "child": "product_applications",
+      "child_columns": [
+        "customer_id"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": false,
+      "on_parent_delete": "NO ACTION"
+    },
+    {
+      "parent": "vehicle_categories",
+      "child": "product_applications",
+      "child_columns": [
+        "category_id"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": false,
+      "on_parent_delete": "NO ACTION"
+    },
+    {
+      "parent": "fuel_types",
+      "child": "product_applications",
+      "child_columns": [
+        "fuel_type_id"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": false,
+      "on_parent_delete": "NO ACTION"
+    },
+    {
+      "parent": "products",
+      "child": "product_cross_references",
+      "child_columns": [
+        "product_id"
+      ],
+      "cardinality": "one-to-many",
+      "parent_required": true,
+      "on_parent_delete": "CASCADE"
+    }
+  ],
+  "catalogue_statistics": {
+    "products": 392,
+    "applications": 399,
+    "seg_iam": 392,
+    "bosch_iam": 120,
+    "products_with_many_applications": 5
+  },
+  "examples": {
+    "0001.260.034": {
+      "product": {
+        "id": 1,
+        "product_type": "starter",
+        "seg_oe_part_no": "0001.260.034",
+        "voltage_v": 12.0,
+        "output_value": 4.0,
+        "output_unit": "kW",
+        "output_display": "4.0 kW",
+        "moq": 240,
+        "lead_time_weeks": 16,
+        "status": "published",
+        "version": 1
+      },
+      "applications": [
+        {
+          "customer": "AGCO CO.",
+          "customer_part_no": "836873457",
+          "category": "OHW",
+          "vehicle_application": "Tractors",
+          "vehicle_model": null,
+          "fuel": "Diesel",
+          "engine_family": null,
+          "engine_type": null,
+          "is_primary": true
+        }
+      ],
+      "cross_references": [
+        {
+          "scheme": "SEG_IAM",
+          "part_no": "0001.260.035"
+        }
+      ]
+    },
+    "F002.GC0.051": {
+      "product": {
+        "id": 35,
+        "product_type": "starter",
+        "seg_oe_part_no": "F002.GC0.051",
+        "voltage_v": 12.0,
+        "output_value": 0.9,
+        "output_unit": "kW",
+        "output_display": "0.9kW",
+        "moq": 20,
+        "lead_time_weeks": 6,
+        "status": "published",
+        "version": 1
+      },
+      "applications": [
+        {
+          "customer": "Hyundai",
+          "customer_part_no": "36100-04300",
+          "category": "Pass Car",
+          "vehicle_application": "KAPPA 1/1.2L,4 Cyl. Gasoline JA model",
+          "vehicle_model": null,
+          "fuel": "Petrol",
+          "engine_family": "Kappa 1/1.2 l, 4 Cly",
+          "engine_type": null,
+          "is_primary": true
+        },
+        {
+          "customer": "KIA",
+          "customer_part_no": "36100-04300",
+          "category": "Pass Car",
+          "vehicle_application": "Picanto",
+          "vehicle_model": null,
+          "fuel": "Petrol",
+          "engine_family": "Kappa 1/1.2 l, 4 Cly",
+          "engine_type": null,
+          "is_primary": false
+        },
+        {
+          "customer": "Hyundai",
+          "customer_part_no": "36100-04300",
+          "category": "Pass Car",
+          "vehicle_application": "Picanto",
+          "vehicle_model": null,
+          "fuel": "Petrol",
+          "engine_family": "Kappa 1/1.2 l, 4 Cly",
+          "engine_type": null,
+          "is_primary": false
+        }
+      ],
+      "cross_references": [
+        {
+          "scheme": "BOSCH_IAM",
+          "part_no": "F002.GC0.051-3DH"
+        },
+        {
+          "scheme": "SEG_IAM",
+          "part_no": "F002.GC0.050"
+        }
+      ]
+    }
+  }
+}
